@@ -40,9 +40,13 @@ in
 
       # 从 github 获取最新的 release
       get_latest_release() {
-        # https://api.github.com/repos/MaaAssistantArknights/MaaAssistantArknights/releases/latest
-
         payload=$(curl -s https://api.github.com/repos/MaaAssistantArknights/MaaAssistantArknights/releases/latest)
+
+        if [ $? -ne 0 ]; then
+          echo "Failed to get latest release"
+          exit 1
+        fi
+
         tag=$(echo $payload | jq -r '.tag_name')
         # 返回
         echo $tag
