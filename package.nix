@@ -4,13 +4,14 @@
 }: let
   system = stdenvNoCC.hostPlatform.system;
   deps = "libcpr onnxruntime opencv";
+  tar = "${pkgs.gnutar}/bin/tar";
+  curl = "${pkgs.curl}/bin/curl";
+  jq = "${pkgs.jq}/bin/jq";
 in
   stdenvNoCC.mkDerivation {
     pname = "featch-maa";
     version = "1.0";
     src = ./.;
-
-    buildInputs = with pkgs; [gnutar curl jq];
 
     installPhase = ''
       mkdir -p $out/bin
@@ -40,14 +41,14 @@ in
 
       # 从 github 获取最新的 release
       get_latest_release() {
-        payload=$(curl -s https://api.github.com/repos/MaaAssistantArknights/MaaAssistantArknights/releases/latest)
+        payload=$(${curl} -s https://api.github.com/repos/MaaAssistantArknights/MaaAssistantArknights/releases/latest)
 
         if [ $? -ne 0 ]; then
           echo "Failed to get latest release"
           exit 1
         fi
 
-        tag=$(echo $payload | jq -r '.tag_name')
+        tag=$(echo $payload | ${jq} -r '.tag_name')
         # 返回
         echo $tag
       }
@@ -61,7 +62,7 @@ in
         echo "Downloading MAA $version for $arch to $output"
 
         echo "https://github.com/MaaAssistantArknights/MaaAssistantArknights/releases/download/$version/MAA-$version-$arch.tar.gz"
-        curl -fL -o $output "https://github.com/MaaAssistantArknights/MaaAssistantArknights/releases/download/$version/MAA-$version-$arch.tar.gz"
+        ${curl} -fL -o $output "https://github.com/MaaAssistantArknights/MaaAssistantArknights/releases/download/$version/MAA-$version-$arch.tar.gz"
         if [ $? -ne 0 ]; then
           echo "Download failed"
           exit 1
@@ -83,7 +84,7 @@ in
 
       # 解压 release
       mkdir -p $OUTPUT_DIR
-      tar -xzf /tmp/maa.tar.gz -C $OUTPUT_DIR --strip-components=1
+      ${tar} -xzf /tmp/maa.tar.gz -C $OUTPUT_DIR --strip-components=1
 
       rm /tmp/maa.tar.gz
 
