@@ -1,18 +1,28 @@
 {
   stdenvNoCC,
   pkgs,
+  lib,
+  libcpr,
+  onnxruntime,
+  opencv,
+  auto-patchelf,
+  patchelf,
+  curl,
+  jq,
+  gnutar,
 }: let
   system = stdenvNoCC.hostPlatform.system;
-  deps = "libcpr onnxruntime opencv";
-  tar = "${pkgs.gnutar}/bin/tar";
-  curl = "${pkgs.curl}/bin/curl";
-  jq = "${pkgs.jq}/bin/jq";
+  libs = lib.replaceChars [":"] [" "] (lib.makeLibraryPath [libcpr onnxruntime opencv]);
 in
   stdenvNoCC.mkDerivation {
     pname = "featch-maa";
     version = "1.0";
     src = ./.;
-
+    buildInputs = [
+      libcpr
+      onnxruntime
+      opencv
+    ];
     installPhase = ''
       mkdir -p $out/bin
       cat > $out/bin/featch-maa <<'EOF'
@@ -41,14 +51,14 @@ in
 
       # 从 github 获取最新的 release
       get_latest_release() {
-        payload=$(${curl} -s https://api.github.com/repos/MaaAssistantArknights/MaaAssistantArknights/releases/latest)
+        payload=$(${curl}/bin/curl -s https://api.github.com/repos/MaaAssistantArknights/MaaAssistantArknights/releases/latest)
 
         if [ $? -ne 0 ]; then
           echo "Failed to get latest release"
           exit 1
         fi
 
-        tag=$(echo $payload | ${jq} -r '.tag_name')
+        tag=$(echo $payload | ${jq}/bin/jq -r '.tag_name')
         # 返回
         echo $tag
       }
@@ -62,7 +72,7 @@ in
         echo "Downloading MAA $version for $arch to $output"
 
         echo "https://github.com/MaaAssistantArknights/MaaAssistantArknights/releases/download/$version/MAA-$version-$arch.tar.gz"
-        ${curl} -fL -o $output "https://github.com/MaaAssistantArknights/MaaAssistantArknights/releases/download/$version/MAA-$version-$arch.tar.gz"
+        ${curl}/bin/curl -fL -o $output "https://github.com/MaaAssistantArknights/MaaAssistantArknights/releases/download/$version/MAA-$version-$arch.tar.gz"
         if [ $? -ne 0 ]; then
           echo "Download failed"
           exit 1
@@ -84,13 +94,14 @@ in
 
       # 解压 release
       mkdir -p $OUTPUT_DIR
-      ${tar} -xzf /tmp/maa.tar.gz -C $OUTPUT_DIR --strip-components=1
+      ${gnutar}/bin/tar -xzf /tmp/maa.tar.gz -C $OUTPUT_DIR --strip-components=1
 
       rm /tmp/maa.tar.gz
 
       # Patch All ELF
       maa_libs=$OUTPUT_DIR/*.so*
-      nix-shell -p ${deps} autoPatchelfHook --run "autoPatchelf $maa_libs"
+      PATH=${patchelf}/bin:$PATH
+      ${auto-patchelf}/bin/auto-patchelf --paths $maa_libs --libs ${libs}
       chmod +x $maa_libs
       chmod +x $OUTPUT_DIR/maa
       EOF
